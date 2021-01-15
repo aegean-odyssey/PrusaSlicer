@@ -1,0 +1,40 @@
+name: Build an AppImage (AO)
+
+on: workflow_dispatch
+
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        ref: ao_build
+    - name: dependencies
+      run: |
+        sudo apt-get update
+        PKGS='libgtk2.0-dev libglew-dev libudev-dev libdbus-1-dev'
+        sudo apt-get install $PKGS
+    - name: libraries
+      run: |
+        mkdir deps/build
+        cd deps/build
+        cmake ..
+        make
+        cd destdir/usr/local/lib
+        ln -s libwxscintilla-3.1.a libwx_gtk2u_scintilla-3.1.a
+    - name: prusa-slicer
+      run: |
+        mkdir build
+        cd build
+        LIB="$(realpath ../deps/build/destdir/usr/local)"
+        cmake .. -DCMAKE_PREFIX_PATH="$LIB" -DSLIC3R_STATIC=1
+        make
+    - name: appimage
+      run: |
+        chmod a+x ./.github/workflows/ao_build_appimage.sh
+        ./.github/workflows/ao_build_appimage.sh
+    - name: upload
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: PrusaSlicer-x86_64.AppImage
+        path: build/PrusaSlicer-x86_64.AppImage
